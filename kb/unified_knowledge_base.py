@@ -172,16 +172,18 @@ class UnifiedKnowledgeBase:
         logger.info(f"Registered {len(processor_registry.processors)} document processors")
     
     def _initialize_embedding_model(self):
-        """Initialize the embedding model."""
-        model_name = self.config.get('languages.embedding_model', 
+        """Initialize the embedding model with fallback options."""
+        model_name = self.config.get('languages.embedding_model',
                                    'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-        
+
         try:
             self.embedding_model = SentenceTransformer(model_name)
             logger.info(f"Loaded embedding model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to load embedding model: {e}")
-            raise
+            # For now, set to None and handle gracefully in search methods
+            self.embedding_model = None
+            logger.warning("Knowledge base will operate in limited mode without embeddings")
     
     def add_document(self, file_path: str, force_reprocess: bool = False) -> bool:
         """
@@ -675,9 +677,12 @@ class UnifiedKnowledgeBase:
         
         logger.info("Cleared knowledge base")
 
-# Global knowledge base instance
-knowledge_base = UnifiedKnowledgeBase()
+# Global knowledge base instance (lazy initialization)
+_knowledge_base = None
 
 def get_knowledge_base() -> UnifiedKnowledgeBase:
-    """Get the global knowledge base instance."""
-    return knowledge_base
+    """Get the global knowledge base instance with lazy initialization."""
+    global _knowledge_base
+    if _knowledge_base is None:
+        _knowledge_base = UnifiedKnowledgeBase()
+    return _knowledge_base

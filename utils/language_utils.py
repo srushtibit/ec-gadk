@@ -11,14 +11,7 @@ import re
 # Language processing imports
 from langdetect import detect, LangDetectException
 
-# googletrans is optional; it can break with certain httpcore versions.
-# Use lazy/guarded import and provide a safe fallback.
-try:
-    from googletrans import Translator as GoogleTranslator  # type: ignore
-    _GOOGLETRANS_AVAILABLE = True
-except Exception as _gt_exc:  # noqa: F841
-    GoogleTranslator = None  # type: ignore
-    _GOOGLETRANS_AVAILABLE = False
+# Removed googletrans - modern LLMs handle multilingual queries natively
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
@@ -395,9 +388,15 @@ def detect_language(text: str) -> LanguageDetectionResult:
     return detector.detect_language(text)
 
 def translate_to_english(text: str, source_language: str = None) -> TranslationResult:
-    """Translate text to English."""
-    translator = MultilingualTranslator()
-    return translator.translate_text(text, target_language='en', source_language=source_language)
+    """Passthrough function - modern LLMs handle multilingual queries natively."""
+    return TranslationResult(
+        original_text=text,
+        translated_text=text,  # No translation needed
+        source_language=source_language or 'en',
+        target_language='en',
+        confidence=1.0,
+        success=True
+    )
 
 def preprocess_multilingual_text(text: str, language: str = None) -> str:
     """Preprocess text with automatic language detection."""

@@ -312,7 +312,7 @@ class AgentCoordinator:
     async def _route_message(self, message: Message):
         """Route a message to its recipient."""
         recipient_id = message.recipient
-        
+
         if recipient_id == "broadcast":
             # Broadcast to all agents except sender
             for agent_id, agent in self.agents.items():
@@ -321,9 +321,12 @@ class AgentCoordinator:
         elif recipient_id in self.agents:
             # Send to specific agent
             self.agents[recipient_id].receive_message(message)
+        elif recipient_id == "user":
+            # Special case: message intended for user - just log it
+            logger.debug(f"Message for user from {message.sender}: {message.content[:100]}...")
         else:
             logger.warning(f"Unknown recipient: {recipient_id}")
-        
+
         # Log the message
         self.message_log.append(message)
     
