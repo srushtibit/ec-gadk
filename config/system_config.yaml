@@ -1,0 +1,168 @@
+agents:
+  communication:
+    hidden_dim: 256
+    learning_rate: 0.001
+    message_length: 64
+    num_layers: 2
+    symbolic_vocab_size: 1000
+  critic:
+    reward_components:
+      accuracy: 0.3
+      completeness: 0.2
+      language_quality: 0.1
+      relevance: 0.4
+    score_threshold: 0.7
+  escalation:
+    email_delay: 300
+    keywords:
+      high_severity:
+      - urgent
+      - critical
+      - emergency
+      - lawsuit
+      - legal
+      - security breach
+      - data loss
+      - system down
+      - outage
+      - breach
+      - hack
+      - attack
+      - cannot access
+      - locked out
+      - crisis
+      - immediate
+      medium_severity:
+      - important
+      - asap
+      - priority
+      - deadline
+      - problem
+      - issue
+      - error
+      - fault
+      - broken
+      - not working
+    severity_threshold: 0.7
+  retrieval:
+    context_window: 2048
+    max_documents: 20
+    rerank_threshold: 0.8
+api:
+  cors_origins:
+  - http://localhost:3000
+  - http://127.0.0.1:3000
+  host: 127.0.0.1
+  port: 8000
+  workers: 4
+database:
+  backup_interval: 86400
+  connection_string: sqlite:///logs/support_system.db
+  session_timeout: 3600
+  type: sqlite
+email:
+  escalation_recipients:
+  - afeef2001kashif@gmail.com, srushti.vp10@gmail.com
+  sender_email: afeef2001kashif@gmail.com
+  sender_password: ${EMAIL_SENDER_PASSWORD}  # Loaded from .env file
+  smtp_port: 587
+  smtp_server: smtp.gmail.com
+  templates_path: config/email_templates
+  use_tls: true
+knowledge_base:
+  chunk_overlap: 50
+  chunk_size: 512
+  embedding_dimension: 384
+  index_path: kb/faiss.index
+  max_results: 10
+  metadata_path: kb/metadata.json
+  processors:
+    csv: true
+    docx: true
+    pdf: true
+    txt: true
+    xlsx: true
+  similarity_threshold: 0.75
+  vector_db: faiss
+languages:
+  auto_detect: true
+  embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  primary: en
+  supported:
+  - en
+  - es
+  - de
+  - fr
+  - hi
+  - zh
+  - ja
+  - pt
+  - it
+  - ru
+  translation_service: googletrans
+llm:
+  models:
+    communication: gemini-2.0-flash
+    critic: gemini-2.0-flash
+    escalation: gemini-2.0-flash
+    retrieval: gemini-2.0-flash
+  google_adk:
+    max_retries: 3
+    timeout: 60
+  provider: google_adk
+monitoring:
+  enable_mlflow: true
+  enable_wandb: false
+  log_conversations: true
+  metrics_interval: 60
+  performance_tracking: true
+paths:
+  cache: cache/
+  data: dataset/
+  exports: exports/
+  logs: logs/
+  models: models/
+performance:
+  batch_processing: true
+  cache_size: 1000
+  max_concurrent_requests: 10
+  model_warmup: true
+reinforcement_learning:
+  algorithm: REINFORCE
+  environment:
+    action_space_size: 1000
+    max_steps: 50
+    observation_space_size: 512
+  reward_shaping:
+    base_reward: 1.0
+    bonus_early_resolution: 0.3
+    penalty_escalation: -0.2
+    penalty_irrelevant: -0.5
+  training:
+    batch_size: 32
+    entropy_coef: 0.01
+    episodes: 1000
+    epsilon: 0.1
+    gamma: 0.99
+    learning_rate: 0.0003
+security:
+  api_key_required: false
+  data_encryption: false
+  enable_auth: false
+  rate_limiting:
+    burst_size: 10
+    requests_per_minute: 60
+system:
+  debug: true
+  environment: local
+  log_level: INFO
+  name: NexaCorp AI Support System
+  version: 1.0.0
+ui:
+  dashboard:
+    max_chat_history: 100
+    refresh_interval: 30
+  streamlit:
+    layout: wide
+    port: 8501
+    theme: dark

@@ -1,0 +1,58 @@
+
+__pycache__/
+.env
+kb/vector_index/
+kb/*.index
+kb/*.pkl
+kb/*.json
+kb/metadata.json
+
+logs/
+
+checkpoints/*.json
+demo_models/*.json
+# Data files (exclude large datasets from version control)
+data/raw/
+data/processed/
+dataset/*.csv
+dataset/*.xlsx
+dataset/*.json
+# Keep small sample files for testing
+!dataset/sample_*
+!dataset/test_*
+
+# Streamlit files
+.streamlit/
+streamlit_app.log
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Keep important configuration templates
+!config/system_config.yaml
+!config/email_templates/
+
+# Keep sample data for testing
+!dataset/sample_tickets.csv
+
+# Keep documentation
+!docs/
+!README.md
+!LICENSE
+
+# Keep requirements files
+!requirements.txt
+!requirements-minimal.txt
+
+# Keep setup files
+!setup.py
+!pyproject.toml
+
+# Keep demo and example files
+!*demo*.py
+!*example*.py
+!*sample*.py
+!test_*.py
+
+*.docx
