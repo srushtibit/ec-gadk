@@ -281,6 +281,18 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                         "escalation_triggered": True
                     })
 
+                    # Immediately return with escalation details
+                    return {
+                        "success": True,
+                        "response": escalation_response.content,
+                        "agent_path": [step["agent"] for step in workflow_steps],
+                        "workflow_steps": workflow_steps,
+                        "retrieved_docs": None,
+                        "direct_response": False,
+                        "escalated": True,
+                        "escalation_info": escalation_response.metadata
+                    }
+
             # Check if it's a direct response (greeting, etc.)
             if comm_response and comm_response.recipient == "user":
                 return {
@@ -315,7 +327,7 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                     "type": "response",
                     "content": retrieval_response.content if retrieval_response else "No documents found",
                     "confidence": 0.7,
-                    "communication_intent": self._extract_communication_intent(retrieval_response),
+                    "communication_intent": "information_retrieval",
                     "emergent_protocol": self._get_emergent_protocol("retrieval_agent", "search_knowledge_base"),
                     "retrieved_docs": getattr(retrieval_response, 'metadata', {}).get('retrieved_docs', [])
                 })
@@ -323,11 +335,26 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                 if retrieval_response and retrieval_response.metadata:
                     retrieved_docs = retrieval_response.metadata.get("retrieved_docs")
 
-                # Route to critic agent for final response
+                # Route back to communication agent for summarization
+                summarized_response = None
                 if retrieval_response:
-                    critic_message = Message(
+                    summarization_message = Message(
                         type=MessageType.RESPONSE,
                         content=retrieval_response.content,
+                        sender="retrieval_agent",
+                        recipient="communication_agent",
+                        metadata={
+                            "original_query": initial_message.content,
+                            "retrieved_docs": retrieved_docs
+                        }
+                    )
+                    
+                    summarized_response = await self.agents["communication_agent"].process_message(summarization_message)
+
+                    # Now, route to critic agent for evaluation of the *original* retrieval response
+                    critic_message = Message(
+                        type=MessageType.RESPONSE,
+                        content=retrieval_response.content, # Pass original content to critic
                         sender="retrieval_agent",
                         recipient="critic_agent",
                         metadata={
@@ -357,14 +384,14 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                         "confidence": confidence,
                         "protocol_efficiency": protocol_efficiency,
                         "consensus_level": consensus_level,
-                        "evaluation": evaluation
+                        "evaluation": evaluation,
+                        "communication_intent": "quality_evaluation"
                     })
 
-                    if critic_response:
-                        final_response = critic_response.content
-
-            # Ensure we have a response - use retrieval response as fallback
-            if not final_response and retrieval_response:
+            # Use summarized response as the final response
+            if summarized_response:
+                final_response = summarized_response.content
+            elif retrieval_response: # Fallback to retrieval response
                 final_response = retrieval_response.content
 
             # Check if any escalation was triggered

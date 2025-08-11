@@ -137,7 +137,9 @@ Output: Structured quality assessment in JSON format"""
             # 1. Evaluate the response using Google ADK
             evaluation = await self._evaluate_with_adk(message)
             if not evaluation:
-                return self._create_error_response("Failed to evaluate the response.", message)
+                # Fallback evaluation when ADK fails
+                evaluation = self._create_fallback_evaluation(message)
+                logger.warning("Using fallback evaluation due to ADK failure")
 
             # 2. Forward the responder's content to user with evaluation attached
             final_response = Message(
@@ -234,8 +236,40 @@ Please provide a detailed evaluation in JSON format.
             logger.info(f"ADK ({self.llm_model}) evaluated response with score: {evaluation.get('overall_score', evaluation.get('score'))}")
             return evaluation
         except Exception as e:
-            logger.error(f"Ollama evaluation failed: {e}.")
+            logger.error(f"ADK evaluation failed: {e}.")
             return None
+
+    def _create_fallback_evaluation(self, message: Message) -> Dict[str, Any]:
+        """Create a basic evaluation when ADK is not available."""
+        response_text = message.content or ""
+        retrieved_docs = message.metadata.get("retrieved_docs", [])
+
+        # Basic scoring based on response characteristics
+        confidence = 0.7 if len(response_text) > 50 else 0.4
+        protocol_efficiency = 0.8 if retrieved_docs else 0.5
+        consensus_level = 0.6  # Default moderate consensus
+
+        # Adjust based on content quality indicators
+        if any(word in response_text.lower() for word in ["step", "solution", "contact", "resolve"]):
+            confidence += 0.1
+            protocol_efficiency += 0.1
+
+        if len(retrieved_docs) > 1:
+            consensus_level += 0.2
+
+        # Cap at 1.0
+        confidence = min(1.0, confidence)
+        protocol_efficiency = min(1.0, protocol_efficiency)
+        consensus_level = min(1.0, consensus_level)
+
+        return {
+            "confidence": confidence,
+            "protocol_efficiency": protocol_efficiency,
+            "consensus_level": consensus_level,
+            "overall_score": (confidence + protocol_efficiency + consensus_level) / 3,
+            "reasoning": "Fallback evaluation based on response characteristics",
+            "evaluation_method": "fallback"
+        }
 
     def _create_error_response(self, error_message: str, original_message: Message) -> Message:
         """Creates a standardized error message."""

@@ -415,7 +415,7 @@ class SupportSystemDashboard:
                                 # Show escalation information if triggered
                                 if exchange.get('escalation_info'):
                                     escalation_info = exchange['escalation_info']
-                                    severity_level = escalation_info.get('severity_level', 'unknown')
+                                    severity_level = escalation_info.get('severity_assessment', {}).get('level', 'unknown')
                                     email_sent = escalation_info.get('email_sent', False)
                                     escalation_id = escalation_info.get('escalation_id', 'N/A')
 
@@ -1576,7 +1576,7 @@ class SupportSystemDashboard:
                         'agent_conversation': result.get("workflow_steps", []),
                         'evaluation': {"quality_score": result.get("quality_score", 0)},
                         'retrieved_docs': result.get("retrieved_docs"),
-                        'escalation_info': {"escalated": result.get("escalated", False)} if result.get("escalated") else None,
+                        'escalation_info': result.get("escalation_info") if result.get("escalated") else None,
                         'processing': False
                     })
                     st.rerun()
@@ -1712,99 +1712,18 @@ class SupportSystemDashboard:
 
     
     def _generate_chat_response(self, detailed_response: str, query: str) -> str:
-        """Generate a concise, chat-like response from detailed search results."""
+        """
+        Generate a concise, chat-like response from detailed search results.
+        """
 
-        # Handle simple greetings and casual conversation
+        # Let the agents handle all responses naturally - no hardcoded overrides
         query_lower = query.lower().strip()
-        simple_greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'how are you', 'what\'s up', 'sup']
-
-        if any(greeting in query_lower for greeting in simple_greetings):
-            return "Hello! 👋 I'm your AI support assistant. I'm here to help you with any technical issues, account problems, or questions you might have. How can I assist you today?"
 
         if not detailed_response or detailed_response == "No response generated":
             return "I'm sorry, I couldn't find any relevant information for your query. Please try rephrasing your question or contact support for assistance."
 
-        # Clean and process the detailed response
-        # The retrieval agent returns bullet points, so let's work with that format
-        response_lines = [line.strip() for line in detailed_response.split('\n') if line.strip()]
-
-        # If the response is already in a good format (bullet points), use it directly
-        if any(line.startswith(('-', '*', '•')) for line in response_lines):
-            # Clean up the bullet points and make them more conversational
-            cleaned_bullets = []
-            for line in response_lines:
-                if line.startswith(('-', '*', '•')):
-                    # Remove bullet and clean up
-                    clean_line = line[1:].strip()
-                    if clean_line and len(clean_line) > 10:  # Skip very short lines
-                        cleaned_bullets.append(clean_line)
-
-            if cleaned_bullets:
-                # Create a conversational response
-                if len(cleaned_bullets) == 1:
-                    return f"Here's what I found to help with your issue: {cleaned_bullets[0]}"
-                else:
-                    response = "Here's what I found to help with your issue:\n\n"
-                    for i, bullet in enumerate(cleaned_bullets[:4], 1):  # Limit to 4 points
-                        response += f"{i}. {bullet}\n"
-                    return response.strip()
-
-        # If no bullet points, try to extract useful information from the response
-        # Look for common patterns and provide contextual help based on query type
-
-        # Try to extract meaningful content from the response
-        meaningful_content = ""
-        for line in response_lines:
-            # Skip metadata-like lines
-            if any(skip_word in line.lower() for skip_word in ['ticket', 'complaint id', 'employee name', 'domain', 'priority', 'queue', 'business type', 'tag', 'language', 'source:']):
-                continue
-            # Look for resolution or answer content
-            if any(key_word in line.lower() for key_word in ['resolution:', 'answer:', 'solution:', 'steps:']):
-                meaningful_content = line
-                break
-            # If line is substantial, use it
-            elif len(line) > 20 and not line.startswith(('ticket', 'complaint', 'employee')):
-                meaningful_content = line
-                break
-
-        # Generate contextual responses based on query type
-        if 'password' in query_lower and 'reset' in query_lower:
-            if meaningful_content:
-                return f"For password reset issues, here's what I found: {meaningful_content}"
-            return "For password reset issues, please check your spam folder, verify your email address, and ensure the email service is configured correctly."
-
-        elif 'access' in query_lower or 'login' in query_lower or 'dashboard' in query_lower:
-            if meaningful_content:
-                return f"To resolve access issues: {meaningful_content}"
-            return "For access problems, please verify your credentials, check your account status, and ensure you have the proper permissions."
-
-        elif 'slow' in query_lower or 'performance' in query_lower:
-            if meaningful_content:
-                return f"To improve performance: {meaningful_content}"
-            return "For performance issues, try clearing your browser cache, checking your network connection, and restarting the application."
-
-        elif 'upload' in query_lower or 'file' in query_lower:
-            if meaningful_content:
-                return f"For file upload problems: {meaningful_content}"
-            return "For file upload issues, check the file size limits, verify the file format is supported, and try using a different browser."
-
-        elif 'email' in query_lower or 'notification' in query_lower:
-            if meaningful_content:
-                return f"To fix email notification issues: {meaningful_content}"
-            return "For email notification problems, check the email service configuration, verify SMTP settings, and test email connectivity."
-
-        elif 'leaves' in query_lower or 'leave' in query_lower:
-            if meaningful_content:
-                return f"Regarding leave applications: {meaningful_content}"
-            return "If your leave applications aren't showing on the panel, please check: 1) Ensure you've submitted your leave request through the correct system, 2) Verify you're looking in the right section (My Leaves, Leave History, etc.), 3) Check if there are any pending approvals needed, 4) Contact HR if your approved leaves still don't appear after 24 hours."
-
-        else:
-            # Generic response - use meaningful content if found, otherwise provide helpful fallback
-            if meaningful_content:
-                return f"Here's what I found to help with your issue: {meaningful_content}"
-            else:
-                # Provide helpful general guidance
-                return "I found some information that might help, but let me provide some general troubleshooting steps: 1) Check your account permissions and settings, 2) Clear your browser cache and cookies, 3) Try logging out and back in, 4) Contact support if the issue persists with specific error messages."
+        # Return the detailed response directly, without adding any prefixes.
+        return detailed_response
     
     def _format_thinking_details(self, exchange: dict) -> str:
         """Format the thinking process details for the expandable section."""

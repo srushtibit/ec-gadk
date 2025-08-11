@@ -303,6 +303,10 @@ Provide your response:"""
             # Extract key information from the best result
             best_result = search_results[0]
             content = best_result.chunk.content or ""
+            # Clean HTML from content
+            content = re.sub(r"<[^>]+>", "", content)
+            content = re.sub(r"&[a-zA-Z]+;", "", content)
+            content = content.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
             # Try to extract actionable information
             mock_response = f"Based on the knowledge base, here's how to resolve your issue:\n\n"
@@ -367,7 +371,10 @@ Provide your response:"""
             return ""
         # Strip HTML tags and known markers
         t = text.replace("```json", "").replace("```", "").strip()
-        t = re.sub(r"<[^>]+>", "", t)
+        # More comprehensive HTML cleaning
+        t = re.sub(r"<[^>]+>", "", t)  # Remove HTML tags
+        t = re.sub(r"&[a-zA-Z]+;", "", t)  # Remove HTML entities
+        t = t.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")  # Decode common entities
         # If think tags present, strip content between them
         if "<think>" in t:
             end = t.rfind("</think>")

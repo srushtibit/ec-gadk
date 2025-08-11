@@ -134,6 +134,9 @@ Output: "Hello! 👋 I'm your AI support assistant. I'm here to help you with te
 Input: "thanks for your help"
 Output: "You're very welcome! 😊 If you have any other questions or need further assistance, please don't hesitate to ask. I'm here to help!"
 
+Input: "how are you doing today"
+Output: "I'm doing well, thank you for asking! 😊 As an AI technical support assistant, I'm here and ready to help you with any technical issues or questions you might have. Is there anything I can assist you with today?"
+
 Input: "I can't share my screen during zoom calls"
 Output: "TECHNICAL_QUERY: screen sharing not working zoom calls unable to share screen"
 
@@ -158,26 +161,31 @@ Always be helpful, professional, and guide users toward getting the technical su
         Returns:
             A new message for the RetrievalAgent with the analyzed query.
         """
-        # Handle response from RetrievalAgent: forward to user and send to Critic for scoring
+        # Handle response from RetrievalAgent: summarize and forward to user, and send to Critic for scoring
         if message.type == MessageType.RESPONSE and message.sender == "retrieval_agent":
             try:
+                original_query = message.metadata.get("original_query", "")
+                
+                # Summarize the retrieved content to create a conversational response
+                final_content = await self._summarize_and_respond(message.content, original_query)
+
                 # Forward to critic for evaluation (async via coordinator)
                 self.send_message(
                     recipient="critic_agent",
-                    content=message.content,
+                    content=message.content, # Send original content to critic
                     message_type=MessageType.RESPONSE,
                     metadata={
-                        "original_query": message.metadata.get("original_query", ""),
+                        "original_query": original_query,
                         "retrieved_docs": message.metadata.get("retrieved_docs", [])
                     }
                 )
 
-                # Forward final answer to user
+                # Forward final summarized answer to user
                 return Message(
                     type=MessageType.RESPONSE,
-                    content=message.content,
+                    content=final_content,
                     metadata={
-                        "original_query": message.metadata.get("original_query", ""),
+                        "original_query": original_query,
                         "retrieved_docs": message.metadata.get("retrieved_docs", []),
                         "final_answer_by": self.agent_id
                     },
@@ -280,9 +288,10 @@ Always be helpful, professional, and guide users toward getting the technical su
             elif any(tech in query_lower for tech in ["password", "login", "email", "system", "error", "problem", "issue", "network", "vpn", "zoom", "computer", "software", "application", "website", "account", "access", "install", "update", "configure", "troubleshoot", "fix", "broken", "not working", "can't", "cannot", "unable", "failed", "screen", "share", "sharing"]):
                 return f"TECHNICAL_QUERY: {query}"
 
-            # Default to non-technical for unclear queries
+            # Default to non-technical for unclear queries - let ADK handle it naturally
             else:
-                return "I'm your AI technical support assistant. I'm here to help with technical issues, account problems, or IT-related questions. Could you please let me know what technical issue you're experiencing?"
+                # Continue to ADK for natural response generation
+                pass
 
         try:
             # Ensure session is initialized
@@ -318,6 +327,63 @@ Always be helpful, professional, and guide users toward getting the technical su
         except Exception as e:
             logger.error(f"ADK invocation failed: {e}")
             return None
+
+    async def _summarize_and_respond(self, retrieved_content: str, original_query: str) -> str:
+        """
+        Uses Google ADK to summarize retrieved content and generate a conversational response.
+        """
+        print(f"DEBUG: _summarize_and_respond called. ADK_AVAILABLE = {ADK_AVAILABLE}")
+        if not ADK_AVAILABLE:
+            # If ADK is not available, just return the content as is.
+            print("DEBUG: ADK not available, returning original content.")
+            return retrieved_content
+
+        prompt = f"""You are a helpful AI support assistant. You have been given the following information from a knowledge base to help answer a user's query. Your task is to synthesize this information into a clear, concise, and friendly response to the user. Do not simply list the information. Explain it in a conversational way.
+
+Knowledge Base Information:
+---
+{retrieved_content}
+---
+
+User's original query was: "{original_query}"
+
+Now, formulate a response to the user.
+"""
+        
+        try:
+            # Ensure session is initialized
+            await self._ensure_session_initialized()
+
+            # Create content for ADK
+            content = types.Content(
+                role='user',
+                parts=[types.Part(text=prompt)]
+            )
+
+            # Run the ADK agent
+            events = self.runner.run_async(
+                user_id=self.user_id,
+                session_id=self.session_id,
+                new_message=content
+            )
+
+            # Extract the response
+            summarized_response = None
+            async for event in events:
+                if event.is_final_response() and event.content and event.content.parts:
+                    summarized_response = event.content.parts[0].text.strip()
+                    break
+            
+            if summarized_response:
+                logger.info(f"ADK summarized response for query '{original_query}'")
+                return summarized_response
+            else:
+                logger.warning("No summary response received from ADK agent, returning original content.")
+                return retrieved_content
+
+        except Exception as e:
+            logger.error(f"ADK summarization failed: {e}")
+            return retrieved_content
 
     def _get_strategy_prompt(self, query: str, strategy: str) -> str:
         """Get prompt based on the selected strategy."""
