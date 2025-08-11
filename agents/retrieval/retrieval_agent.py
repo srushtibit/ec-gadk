@@ -256,12 +256,24 @@ Always be helpful, accurate, and guide users toward successful resolution of the
                 context_parts.append(f"Document {i+1} (Relevance: {res.score:.3f}):\n{cleaned_content}")
 
         if not context_parts:
-            return "I found some documents but they don't contain specific resolution information for your query."
+            # Try to extract any useful information from the raw content
+            fallback_info = []
+            for res in search_results[:2]:
+                if res.chunk.content:
+                    # Extract key information even from noisy content
+                    content = res.chunk.content
+                    if any(keyword in content.lower() for keyword in ["step", "solution", "resolve", "fix", "contact", "email", "phone", "process"]):
+                        fallback_info.append(content[:300] + "..." if len(content) > 300 else content)
+
+            if fallback_info:
+                return f"Based on the available information:\n\n" + "\n\n".join(fallback_info)
+            else:
+                return "I found some documents but they don't contain specific resolution information for your query. Please contact support for personalized assistance."
 
         context = "\n\n".join(context_parts)
 
         prompt = f"""
-You are a technical support assistant. Based on the knowledge base documents below, provide a clear, actionable solution to the user's problem.
+You are an expert technical support assistant. Based on the knowledge base documents below, provide a comprehensive, actionable solution to the user's problem.
 
 User's Problem: {query}
 
@@ -269,25 +281,46 @@ Knowledge Base Information:
 {context}
 
 Instructions:
-1. Focus on providing specific steps or solutions from the knowledge base
-2. If the documents contain troubleshooting steps, present them clearly
-3. If multiple solutions exist, prioritize the most effective one
-4. If the information is insufficient, suggest contacting support
-5. Use bullet points or numbered steps for clarity
-6. Be concise but comprehensive
+1. Start with a direct answer or solution statement
+2. Provide specific step-by-step instructions from the knowledge base
+3. Include relevant details like contact information, deadlines, or requirements
+4. If troubleshooting is needed, present all necessary steps clearly
+5. Use numbered steps for processes and bullet points for options
+6. Be thorough and decisive - don't just say "here's how to resolve" and stop
+7. If multiple solutions exist, explain when to use each one
+8. End with next steps or who to contact if the solution doesn't work
+
+Format your response as a complete, helpful answer that fully addresses the user's problem.
 
 Provide your response:"""
 
         if not ADK_AVAILABLE:
-            # Mock implementation - return a simple synthesized response
+            # Mock implementation - provide a more comprehensive response
             logger.info(f"Using mock ADK implementation for synthesis")
-            mock_response = f"Based on the knowledge base, here's what I found regarding '{query}':\n\n"
-            if search_results:
-                mock_response += f"• Found {len(search_results)} relevant documents\n"
-                mock_response += f"• Primary source: {search_results[0].chunk.source_file}\n"
-                mock_response += f"• Content summary: {search_results[0].chunk.content[:200]}..."
+            if not search_results:
+                return "I couldn't find relevant information in the knowledge base for your query. Please contact support for assistance."
+
+            # Extract key information from the best result
+            best_result = search_results[0]
+            content = best_result.chunk.content or ""
+
+            # Try to extract actionable information
+            mock_response = f"Based on the knowledge base, here's how to resolve your issue:\n\n"
+
+            # Look for step-by-step instructions or solutions
+            if "step" in content.lower() or "solution" in content.lower():
+                mock_response += f"**Solution from {best_result.chunk.source_file}:**\n"
+                mock_response += content[:500] + ("..." if len(content) > 500 else "")
             else:
-                mock_response += "No relevant documents found in the knowledge base."
+                mock_response += f"**Information from {best_result.chunk.source_file}:**\n"
+                mock_response += content[:400] + ("..." if len(content) > 400 else "")
+
+            # Add additional context if available
+            if len(search_results) > 1:
+                mock_response += f"\n\n**Additional Information:**\n"
+                mock_response += search_results[1].chunk.content[:200] + ("..." if len(search_results[1].chunk.content) > 200 else "")
+
+            mock_response += "\n\nIf you need further assistance, please contact support."
             return mock_response
 
         try:

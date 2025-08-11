@@ -156,16 +156,16 @@ class EnhancedAgentCoordinator(AgentCoordinator):
 
         content = message.content.lower() if message.content else ""
 
-        # Analyze content for communication patterns
-        if "technical" in content or "query" in content:
-            return "technical_assistance"
-        elif "greeting" in content or "hello" in content or "hi" in content:
+        # Analyze content for communication patterns - prioritize greetings first
+        if any(word in content for word in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "how are you", "weather"]):
             return "social_greeting"
-        elif "escalate" in content or "urgent" in content:
+        elif any(word in content for word in ["urgent", "emergency", "critical", "escalate", "security breach", "data loss", "system down"]):
             return "escalation_request"
-        elif "search" in content or "find" in content:
+        elif any(phrase in content for phrase in ["not working", "error", "problem", "issue", "can't access", "unable to", "login", "password", "account", "system", "application", "software", "hardware", "network", "email", "printer", "computer", "server", "database", "website", "portal", "panel", "dashboard", "leave", "payroll", "hr", "it support"]):
+            return "technical_assistance"
+        elif any(word in content for word in ["search", "find", "look for", "where is", "how to find"]):
             return "information_retrieval"
-        elif "evaluate" in content or "assess" in content:
+        elif any(word in content for word in ["evaluate", "assess", "review", "check quality"]):
             return "quality_evaluation"
         else:
             return "general_communication"
@@ -251,6 +251,36 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                 "emergent_protocol": self._get_emergent_protocol("communication_agent", "analyze_query")
             })
 
+            # Check for escalation first (before direct response)
+            escalation_response = None
+            if "escalation_agent" in self.agents:
+                escalation_message = Message(
+                    type=MessageType.QUERY,
+                    content=initial_message.content,
+                    sender="communication_agent",
+                    recipient="escalation_agent",
+                    metadata={"analyzed_query": comm_response.content if comm_response else initial_message.content}
+                )
+
+                escalation_response = await self.agents["escalation_agent"].process_message(escalation_message)
+
+                if escalation_response and escalation_response.metadata.get("escalation_triggered"):
+                    severity_assessment = escalation_response.metadata.get("severity_assessment", {})
+                    workflow_steps.append({
+                        "agent": "escalation_agent",
+                        "action": "escalation_triggered",
+                        "response": escalation_response.content,
+                        "timestamp": time.time(),
+                        "sender": "escalation_agent",
+                        "recipient": "broadcast",
+                        "type": "escalation",
+                        "content": escalation_response.content,
+                        "severity_level": severity_assessment.get("level", "unknown"),
+                        "escalation_id": escalation_response.metadata.get("escalation_id", "unknown"),
+                        "email_sent": escalation_response.metadata.get("email_sent", False),
+                        "escalation_triggered": True
+                    })
+
             # Check if it's a direct response (greeting, etc.)
             if comm_response and comm_response.recipient == "user":
                 return {
@@ -258,7 +288,8 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                     "response": comm_response.content,
                     "agent_path": ["communication_agent"],
                     "workflow_steps": workflow_steps,
-                    "direct_response": True
+                    "direct_response": True,
+                    "escalated": escalation_response is not None and escalation_response.metadata.get("escalation_triggered", False)
                 }
 
             # Continue with retrieval if communication agent routed to retrieval
@@ -295,17 +326,24 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                 # Route to critic agent for final response
                 if retrieval_response:
                     critic_message = Message(
-                        type=MessageType.QUERY,
-                        content=initial_message.content,
+                        type=MessageType.RESPONSE,
+                        content=retrieval_response.content,
                         sender="retrieval_agent",
                         recipient="critic_agent",
                         metadata={
+                            "original_query": initial_message.content,
                             "retrieved_docs": retrieved_docs,
                             "search_results": retrieval_response.content
                         }
                     )
 
                     critic_response = await self.agents["critic_agent"].process_message(critic_message)
+
+                    # Extract evaluation metrics from critic response
+                    evaluation = critic_response.metadata.get("evaluation", {}) if critic_response else {}
+                    confidence = evaluation.get("confidence", evaluation.get("overall_score", 0.0))
+                    protocol_efficiency = evaluation.get("protocol_efficiency", evaluation.get("efficiency", 0.0))
+                    consensus_level = evaluation.get("consensus_level", evaluation.get("consensus", 0.0))
 
                     workflow_steps.append({
                         "agent": "critic_agent",
@@ -315,7 +353,11 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                         "sender": "critic_agent",
                         "recipient": "user",
                         "type": "response",
-                        "content": critic_response.content if critic_response else "No response generated"
+                        "content": critic_response.content if critic_response else "No response generated",
+                        "confidence": confidence,
+                        "protocol_efficiency": protocol_efficiency,
+                        "consensus_level": consensus_level,
+                        "evaluation": evaluation
                     })
 
                     if critic_response:
@@ -325,6 +367,9 @@ class EnhancedAgentCoordinator(AgentCoordinator):
             if not final_response and retrieval_response:
                 final_response = retrieval_response.content
 
+            # Check if any escalation was triggered
+            escalated = any(step.get("type") == "escalation" for step in workflow_steps)
+
             # Return the final result
             return {
                 "success": True,
@@ -332,7 +377,8 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                 "agent_path": [step["agent"] for step in workflow_steps],
                 "workflow_steps": workflow_steps,
                 "retrieved_docs": retrieved_docs,
-                "direct_response": False
+                "direct_response": False,
+                "escalated": escalated
             }
 
         except Exception as e:
@@ -408,24 +454,25 @@ class EnhancedAgentCoordinator(AgentCoordinator):
                 )
 
                 logger.debug(f"Created RLAction for {agent_id}: {action.action_type.value}")
+
+                # Calculate and provide reward
+                reward = self.rl_coordinator.provide_reward_feedback(
+                    agent_id=agent_id,
+                    action=action,
+                    outcome=outcome
+                )
+
+                # Update agent state
+                if agent_id in self.agent_states:
+                    # Update performance based on reward
+                    current_perf = self.agent_states[agent_id].recent_performance
+                    self.agent_states[agent_id].recent_performance = (current_perf * 0.9) + (reward * 0.1)
+
         except Exception as e:
             logger.error(f"Error in _provide_automatic_feedback: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return
-            
-            # Calculate and provide reward
-            reward = self.rl_coordinator.provide_reward_feedback(
-                agent_id=agent_id,
-                action=action,
-                outcome=outcome
-            )
-            
-            # Update agent state
-            if agent_id in self.agent_states:
-                # Update performance based on reward
-                current_perf = self.agent_states[agent_id].recent_performance
-                self.agent_states[agent_id].recent_performance = (current_perf * 0.9) + (reward * 0.1)
     
     def enable_training_mode(self):
         """Enable training mode for active RL learning."""
