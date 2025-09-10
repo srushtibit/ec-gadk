@@ -176,6 +176,26 @@ python dataset/build_database.py
 
 This script will process the documents, generate embeddings, and save the knowledge base files in the `kb` directory.
 
+**6. Configure Escalation Emails**
+
+For the escalation feature to work correctly, you need to configure the sender and recipient email addresses in the system configuration file.
+
+*   Open `config/system_config.yaml`.
+*   Locate the `email` section.
+*   Change the `sender_email`, `sender_password`, and `escalation_recipients` to your desired values.
+
+```yaml
+email:
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  use_tls: true
+  sender_email: "your_email@example.com"
+  sender_password: "your_app_password"
+  escalation_recipients:
+    - "manager@example.com"
+```
+**Note:** For Gmail, you will need to use an "App Password" if you have 2-Factor Authentication enabled.
+
 ### Running the Application
 
 **1. Launch the Streamlit Dashboard**

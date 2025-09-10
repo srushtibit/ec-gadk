@@ -512,16 +512,16 @@ Please provide a refined severity assessment in JSON format.
             if email_sent:
                 self.escalation_stats['emails_sent'] += 1
             
+            # Create a user-friendly response
+            if severity_assessment.severity_level in ['critical', 'high']:
+                user_response = "This is a high-priority issue. I have immediately escalated it to our support team. You will be contacted by a specialist shortly."
+            else:
+                user_response = "I have escalated this issue to our support team. They will investigate and get back to you as soon as possible."
+
             # Create response message
-            response_content = f"ESCALATION TRIGGERED: {severity_assessment.severity_level.upper()} severity issue detected.\n"
-            response_content += f"Escalation ID: {escalation_id}\n"
-            response_content += f"Severity Score: {severity_assessment.severity_score:.3f}\n"
-            response_content += f"Email Notification: {'Sent' if email_sent else 'Failed'}\n"
-            response_content += f"Reason: {severity_assessment.reasoning}"
-            
             response_message = Message(
                 type=MessageType.ESCALATION,
-                content=response_content,
+                content=user_response,
                 metadata={
                     'escalation_triggered': True,
                     'escalation_id': escalation_id,
@@ -532,7 +532,8 @@ Please provide a refined severity assessment in JSON format.
                         'reasoning': severity_assessment.reasoning
                     },
                     'email_sent': email_sent,
-                    'resolution_deadline': escalation_record.resolution_deadline
+                    'resolution_deadline': escalation_record.resolution_deadline,
+                    'internal_details': f"ESCALATION TRIGGERED: {severity_assessment.severity_level.upper()} severity issue detected. Escalation ID: {escalation_id}"
                 },
                 sender=self.agent_id,
                 recipient="broadcast"  # Notify all agents
