@@ -9,6 +9,7 @@ import pickle
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union
+from collections import Counter
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import numpy as np
@@ -64,7 +65,7 @@ class KnowledgeBaseStats:
     total_chunks: int
     total_characters: int
     languages: List[str]
-    file_formats: List[str]
+    file_formats: Dict[str, int]
     last_updated: str
     
 class UnifiedKnowledgeBase:
@@ -478,21 +479,26 @@ class UnifiedKnowledgeBase:
     def get_stats(self) -> KnowledgeBaseStats:
         """Get knowledge base statistics."""
         languages = set()
-        file_formats = set()
+        file_formats = Counter()
         total_characters = 0
         
+        source_files = set(chunk.source_file for chunk in self.chunks)
+
         for chunk in self.chunks:
             languages.add(chunk.language)
-            file_ext = os.path.splitext(chunk.source_file)[1].lower()
-            file_formats.add(file_ext)
             total_characters += len(chunk.content)
+
+        for file_path in source_files:
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext:
+                file_formats[file_ext] += 1
         
         return KnowledgeBaseStats(
-            total_documents=len(set(chunk.source_file for chunk in self.chunks)),
+            total_documents=len(source_files),
             total_chunks=len(self.chunks),
             total_characters=total_characters,
             languages=sorted(list(languages)),
-            file_formats=sorted(list(file_formats)),
+            file_formats=dict(file_formats),
             last_updated=datetime.now().isoformat()
         )
     

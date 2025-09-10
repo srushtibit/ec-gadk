@@ -799,10 +799,7 @@ class SupportSystemDashboard:
             
             # File formats
             if kb_stats.file_formats:
-                format_data = pd.DataFrame({
-                    'Format': kb_stats.file_formats,
-                    'Count': [1] * len(kb_stats.file_formats)  # Simplified
-                })
+                format_data = pd.DataFrame(list(kb_stats.file_formats.items()), columns=['Format', 'Count'])
                 
                 fig = px.bar(format_data, x='Format', y='Count', 
                            title="Document Formats in Knowledge Base")
@@ -1921,16 +1918,18 @@ class SupportSystemDashboard:
         # Show up to 5 documents as requested
         docs_to_show = retrieved_docs[:5]
 
+        exchange_id = exchange.get('timestamp', str(time.time()))
+
         if len(docs_to_show) > 1:
             doc_tabs = st.tabs([f"📄 Doc {i+1}" for i in range(len(docs_to_show))])
             for i, (tab, doc) in enumerate(zip(doc_tabs, docs_to_show)):
                 with tab:
-                    self._render_single_document(doc, i)
-        else:
+                    self._render_single_document(doc, i, exchange_id)
+        elif docs_to_show:
             # Single document - show directly
-            self._render_single_document(docs_to_show[0], 0)
+            self._render_single_document(docs_to_show[0], 0, exchange_id)
 
-    def _render_single_document(self, doc: dict, index: int):
+    def _render_single_document(self, doc: dict, index: int, exchange_id: str):
         """Render a single document with its details."""
         try:
             chunk = doc.get('chunk', {})
@@ -1944,7 +1943,7 @@ class SupportSystemDashboard:
                 st.markdown(f"**📄 Source:** `{src}`")
                 snippet = content[:300] + ('...' if len(content) > 300 else '')
                 st.markdown("**📝 Content Preview:**")
-                st.text_area("Document Content", value=snippet, height=120, disabled=True, key=f"doc_content_{index}", label_visibility="collapsed")
+                st.text_area("Document Content", value=snippet, height=120, disabled=True, key=f"doc_content_{exchange_id}_{index}", label_visibility="collapsed")
 
             with col2:
                 st.metric("🎯 Relevance Score", f"{score:.3f}")
