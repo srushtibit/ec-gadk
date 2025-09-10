@@ -387,7 +387,7 @@ Output: Structured severity assessment in JSON format"""
                 if llm_eval and 'severity_score' in llm_eval and 'severity_level' in llm_eval:
                     # Combine rule-based and LLM scores conservatively (average)
                     severity_score = float(max(0.0, min(1.0, (severity_score + float(llm_eval['severity_score'])) / 2.0)))
-                    severity_level = llm_eval['severity_level']
+                    severity_level = llm_eval['severity_level'].lower()
                     reasoning_parts.append(f"ADK refinement: {llm_eval.get('reasoning', 'n/a')}")
         except Exception as e:
             logger.warning(f"ADK refinement failed: {e}")

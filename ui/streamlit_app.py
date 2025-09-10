@@ -172,6 +172,7 @@ class SupportSystemDashboard:
         st.session_state.system_initialized = False
         st.session_state.agents_running = False
         st.session_state.conversation_history = []
+        st.session_state.chat_messages = []
         st.session_state.training_history = []
         st.session_state.system_metrics = {}
         st.session_state.selected_language = 'en'

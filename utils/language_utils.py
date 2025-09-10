@@ -394,8 +394,7 @@ def translate_to_english(text: str, source_language: str = None) -> TranslationR
         translated_text=text,  # No translation needed
         source_language=source_language or 'en',
         target_language='en',
-        confidence=1.0,
-        success=True
+        confidence=1.0
     )
 
 def preprocess_multilingual_text(text: str, language: str = None) -> str:

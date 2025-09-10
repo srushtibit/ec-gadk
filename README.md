@@ -104,41 +104,98 @@ The system leverages Google's Agent Development Kit (ADK) for advanced AI capabi
 
 ## 🚀 Getting Started
 
+This guide will walk you through the steps to get the NexaCorp AI Support System up and running on your local machine.
+
 ### Prerequisites
 
-- Python 3.10+
-- Google API Key (for Gemini models)
-- AgentOps API Key (optional, for enhanced monitoring)
+Make sure you have the following installed:
 
-### Installation
+*   **Python 3.10+**
+*   **Git**
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd ec-gadk
-   ```
+You will also need the following API keys:
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+*   **Google API Key**: For using the Gemini models.
+*   **AgentOps API Key** (Optional): For enhanced monitoring with AgentOps.
 
-3. **Set up environment variables**
-   ```bash
-   # Create .env file
-   echo "GOOGLE_API_KEY=your_google_api_key_here" > .env
-   echo "AGENTOPS_API_KEY=your_agentops_api_key_here" >> .env  # Optional
-   ```
+### Installation and Setup
 
-4. **Run the demo**
-   ```bash
-   python demo_emergent_communication.py
-   ```
+**1. Clone the Repository**
 
-5. **Launch the Streamlit dashboard**
-   ```bash
-   streamlit run ui/streamlit_app.py
-   ```
+First, clone the repository to your local machine:
+
+```bash
+git clone https://github.com/your-username/ec-gadk.git
+cd ec-gadk
+```
+**Note:** Replace `your-username` with your actual GitHub username if you have forked the repository.
+
+**2. Install Dependencies**
+
+Install the required Python packages using pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+**3. Configure Environment Variables**
+
+The project uses a `.env` file to manage API keys and other secrets.
+
+*   Copy the example environment file:
+    ```bash
+    cp .env.example .env
+    ```
+*   Open the `.env` file in a text editor and add your API keys:
+    ```
+    GEMINI_API_KEY="your_google_api_key_here"
+    AGENTOPS_API_KEY="your_agentops_api_key_here" # Optional
+    ```
+
+**4. Set Up the Dataset**
+
+The knowledge base for the system is built from documents in the `dataset` directory. Before you can build the knowledge base, you need to add the following files to the `dataset` directory:
+
+*   `NexaCorp HR Manual.docx`
+*   `NexaCorp IT Support Manual.docx`
+*   `NexaCorp Payroll Support Manual.docx`
+*   `aa_dataset-tickets-multi-lang-5-2-50-version.csv`
+*   `dataset-tickets-german_normalized.csv`
+*   `dataset-tickets-german_normalized_50_5_2.csv`
+*   `dataset-tickets-multi-lang3-4k.csv`
+*   `dataset-tickets-multi-lang-4-20k.csv`
+*   `nexacorp_tickets.xlsx`
+
+**5. Build the Knowledge Base**
+
+Once the dataset files are in place, run the following command to build the FAISS index and metadata for the knowledge base:
+
+```bash
+python dataset/build_database.py
+```
+
+This script will process the documents, generate embeddings, and save the knowledge base files in the `kb` directory.
+
+### Running the Application
+
+**1. Launch the Streamlit Dashboard**
+
+To start the application, run the following command:
+
+```bash
+streamlit run ui/streamlit_app.py
+```
+
+This will open the NexaCorp AI Support System dashboard in your web browser.
+
+**2. Initialize Agent Lightning**
+
+For the agent to function correctly and provide metrics like confidence scores, you need to initialize the Agent Lightning framework.
+
+*   In the Streamlit app, navigate to the **🚀 Agent Lightning** tab.
+*   Click the initialization button to start the Agent Lightning services.
+
+You are now ready to interact with the AI support system!
 
 ## 🎮 Usage Examples
 
@@ -182,20 +239,25 @@ This demo showcases:
 
 ## 📊 Monitoring & Training
 
-### Agent Lightning Dashboard
+The application includes a comprehensive dashboard for monitoring and training the agents, powered by Agent Lightning.
 
-Access the comprehensive training dashboard:
+### Accessing the Dashboard
 
-```bash
-streamlit run ui/agent_lightning_dashboard.py
-```
+The monitoring and training dashboard is available within the main Streamlit application.
 
-Features:
-- **RL Performance**: Training episodes, reward curves, action distribution
-- **Communication Patterns**: Emergent protocol analysis, efficiency metrics
-- **Tool Usage**: Agent-as-tools coordination, tool performance
-- **Reward Analysis**: Multi-signal reward breakdown, optimization suggestions
-- **System Overview**: Overall system health and performance metrics
+1.  Run the application:
+    ```bash
+    streamlit run ui/streamlit_app.py
+    ```
+2.  Navigate to the **🚀 Agent Lightning** and **🎓 RL Training** tabs to access the dashboards.
+
+### Features
+
+-   **RL Performance**: Track training episodes, reward curves, and action distributions.
+-   **Communication Patterns**: Analyze emergent communication protocols and their efficiency.
+-   **Tool Usage**: Monitor how agents use each other as tools.
+-   **Reward Analysis**: See a breakdown of the multi-signal rewards.
+-   **System Overview**: Get a high-level view of system health and performance.
 
 ### Training Configuration
 
